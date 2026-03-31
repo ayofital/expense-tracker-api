@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
+import { expenseRules, validate } from '../middleware/validators.js';
 
 const router = Router();
 
 // GET /api/expenses — fetch all expenses with category name
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const [rows] = await pool.query(`
       SELECT
@@ -21,12 +22,12 @@ router.get('/', async (req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/expenses/:id — fetch one expense
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const [rows] = await pool.query(`
       SELECT e.*, c.name AS category
@@ -40,17 +41,13 @@ router.get('/:id', async (req, res) => {
     }
     res.json(rows[0]);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/expenses — create a new expense
-router.post('/', async (req, res) => {
+router.post('/', ...expenseRules, validate, async (req, res, next) => {
   const { title, amount, category_id, date, notes } = req.body;
-
-  if (!title || !amount || !date) {
-    return res.status(400).json({ error: 'title, amount and date are required' });
-  }
 
   try {
     const [result] = await pool.query(
@@ -59,12 +56,12 @@ router.post('/', async (req, res) => {
     );
     res.status(201).json({ id: result.insertId, title, amount, category_id, date, notes });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PUT /api/expenses/:id — update an expense
-router.put('/:id', async (req, res) => {
+router.put('/:id', ...expenseRules, validate, async (req, res, next) => {
   const { title, amount, category_id, date, notes } = req.body;
   const { id } = req.params;
 
@@ -81,12 +78,12 @@ router.put('/:id', async (req, res) => {
     }
     res.json({ message: 'Expense updated successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /api/expenses/:id — delete an expense
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
     const [result] = await pool.query(
       'DELETE FROM expenses WHERE id = ?',
@@ -98,7 +95,7 @@ router.delete('/:id', async (req, res) => {
     }
     res.json({ message: 'Expense deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
