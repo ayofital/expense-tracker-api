@@ -5,6 +5,7 @@ import limiter from './middleware/rateLimiter.js';
 import errorHandler  from './middleware/errorHandler.js';
 import expensesRouter from './routes/expenses.js';
 import categoriesRoutes from './routes/categories.js';
+import authRouter from './routes/auth.js';
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get('/health', (req, res) => {
 
 app.use('/api/expenses', expensesRouter);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/auth', authRouter);
 
 app.use(errorHandler)
 

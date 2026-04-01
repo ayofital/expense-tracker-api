@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import pool from '../config/db.js';
 import { expenseRules, validate } from '../middleware/validators.js';
+import  authenticate from '../middleware/authenticate.js';
 
 const router = Router();
 
 // GET /api/expenses — fetch all expenses with category name
-router.get('/', async (req, res, next) => {
+router.get('/', authenticate,  async (req, res, next) => {
   try {
     const [rows] = await pool.query(`
       SELECT
@@ -18,8 +19,9 @@ router.get('/', async (req, res, next) => {
         c.name AS category
       FROM expenses e
       LEFT JOIN categories c ON e.category_id = c.id
+      WHERE e.user_id = ?
       ORDER BY e.date DESC
-    `);
+    `, [req.user.id]);
     res.json(rows);
   } catch (err) {
     next(err);
@@ -27,14 +29,14 @@ router.get('/', async (req, res, next) => {
 });
 
 // GET /api/expenses/:id — fetch one expense
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticate, async (req, res, next) => {
   try {
     const [rows] = await pool.query(`
       SELECT e.*, c.name AS category
       FROM expenses e
       LEFT JOIN categories c ON e.category_id = c.id
-      WHERE e.id = ?
-    `, [req.params.id]);
+      WHERE e.id = ? AND e.user_id = ?
+    `, [req.params.id, req.user.id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Expense not found' });
@@ -46,22 +48,21 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST /api/expenses — create a new expense
-router.post('/', ...expenseRules, validate, async (req, res, next) => {
+router.post('/', authenticate, ...expenseRules, validate, async (req, res, next) => {
   const { title, amount, category_id, date, notes } = req.body;
 
   try {
     const [result] = await pool.query(
-      'INSERT INTO expenses (title, amount, category_id, date, notes) VALUES (?, ?, ?, ?, ?)',
-      [title, amount, category_id || null, date, notes || null]
+      'INSERT INTO expenses (title, amount, category_id, date, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [title, amount, category_id || null, date, notes || null, req.user.id]
     );
     res.status(201).json({ id: result.insertId, title, amount, category_id, date, notes });
   } catch (err) {
     next(err);
   }
 });
-
 // PUT /api/expenses/:id — update an expense
-router.put('/:id', ...expenseRules, validate, async (req, res, next) => {
+router.put('/:id', authenticate, ...expenseRules, validate, async (req, res, next) => {
   const { title, amount, category_id, date, notes } = req.body;
   const { id } = req.params;
 
@@ -69,8 +70,8 @@ router.put('/:id', ...expenseRules, validate, async (req, res, next) => {
     const [result] = await pool.query(
       `UPDATE expenses
        SET title = ?, amount = ?, category_id = ?, date = ?, notes = ?
-       WHERE id = ?`,
-      [title, amount, category_id || null, date, notes || null, id]
+       WHERE id = ? AND user_id = ?`,
+      [title, amount, category_id || null, date, notes || null, id, req.user.id]
     );
 
     if (result.affectedRows === 0) {
@@ -83,11 +84,11 @@ router.put('/:id', ...expenseRules, validate, async (req, res, next) => {
 });
 
 // DELETE /api/expenses/:id — delete an expense
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const [result] = await pool.query(
-      'DELETE FROM expenses WHERE id = ?',
-      [req.params.id]
+      'DELETE FROM expenses WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
     );
 
     if (result.affectedRows === 0) {
