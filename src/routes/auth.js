@@ -7,7 +7,7 @@ import { body, validationResult } from 'express-validator';
 const router = Router();
 
 // validation rules for auth routes
-const registerRules = [
+const authRules = [
     body('email')
     .isEmail()
     .withMessage('valid email required')
@@ -19,7 +19,7 @@ const registerRules = [
 ];
 
 // POST /api/auth/register
-router.post('/register', registerRules, async (req, res, next) => {
+router.post('/register', authRules, async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -59,7 +59,7 @@ router.post('/register', registerRules, async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post('/login', registerRules, async (req, res, next) => {
+router.post('/login', authRules, async (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });

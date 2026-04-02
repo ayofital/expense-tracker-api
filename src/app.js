@@ -14,13 +14,13 @@ app.use(limiter);
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'API is runnning'});
+    res.json({ status: 'API is running'});
 })
 
-
+app.use('/api/auth', authRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/auth', authRouter);
+
 
 app.use(errorHandler)
 
