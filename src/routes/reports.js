@@ -31,3 +31,32 @@ router.get('/monthly', authenticate, async (req, res, next) => {
     }
 });
 
+// GET /apireports/by-category - spending per category
+router.get('/by-category', authenticate, async (req, res, next) => {
+    try {
+        const [rows] =  await pool.query(`
+            SELECT 
+            COALESCE(c.name, 'Uncategorised') AS category,
+            SUM(e.amount)  AS total,
+            COunt(*) AS expense_count,
+            ROUND(AVG(e.amount, 2))  AS average
+            FROM expenses e
+            LEFT JOIN categories c ON e.category_id = c.id
+            WHERE e.user_id = ?
+            GROUP BY e.category_id, c.name
+            ORDER BY total DESC
+            `, [req.user.id]);
+
+            const formatted = rows.map(row => ({
+                category: row.category,
+                total: parseFloat(row.total),
+                expense_count: parseInt(row.expense_count),
+                average: parseFloat(row.average),
+            }));
+
+            res.json(formatted);
+    }catch (err) {
+        next(err);
+    }
+})
+
