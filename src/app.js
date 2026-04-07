@@ -6,6 +6,7 @@ import errorHandler  from './middleware/errorHandler.js';
 import expensesRouter from './routes/expenses.js';
 import categoriesRoutes from './routes/categories.js';
 import authRouter from './routes/auth.js';
+import reportsRouter from './routes/reports.js';
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/categories', categoriesRoutes);
+app.use('/api/reports', reportsRouter);
 
 
 app.use(errorHandler)
