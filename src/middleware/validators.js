@@ -23,6 +23,12 @@ export const expenseRules = [
     .isFloat({ min: 0.01 })
     .withMessage('Amount must be a positive number'),
 
+    body('date')
+    .notEmpty()
+    .withMessage('Date is required')
+    .isISO8601()
+    .withMessage('Date must be a valid date (YYYY-MM-DD)'),
+
     body('category_id')
     .optional()
     .isInt({ min: 1 })
@@ -42,13 +48,8 @@ export const expenseRules = [
     .optional()
     .trim()
     .isLength({ max: 1000 })
-    .withMessage('Notes must be under 1000 characters'),
+    .withMessage('Notes must be under 1000 characters')
 
-    body('date')
-    .notEmpty()
-    .withMessage('Date is required')
-    .isISO8601()
-    .withMessage('Date must be a valid date (YYYY-MM-DD')
 ];
 
 export const categoryRules = [

@@ -1,7 +1,8 @@
 import pool from '../config/db.js';
 
-export const getExpense =  async (req, res, next) => {
+export const getExpenses =  async (req, res, next) => {
     try {
+    
         const [rows] = await pool.query(`
             SELECT e.id, e.title, e.amount, e.date, e.notes, 
             e.created_at, c.name AS category        
