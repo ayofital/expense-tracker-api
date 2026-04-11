@@ -1,21 +1,25 @@
 import pool from '../config/db.js';
 
+const ALLOWED_SORT_COLUMNS = ['date', 'amount', 'title', 'created_at'];
+const ALLOWED_SORT_ORDERS = ['ASC','DESC'];
+
 export const getExpenses =  async (req, res, next) => {
-    try {
-    
-        const [rows] = await pool.query(`
-            SELECT e.id, e.title, e.amount, e.date, e.notes, 
-            e.created_at, c.name AS category        
-            FROM expenses e
-            LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = ?
-            ORDER BY e.date DESC
-            `, [req.user.id]);
-            res.json(rows);
-    } catch(err) {
-        next(err);
-    }
+ const {
+    search,
+    category_id,
+    date_from,
+    date_to,
+    min_amount,
+    max_amount,
+    sort_by,
+    sort_order,
+    page,
+    limit,
+ } = req.query;
 };
+
+// santize sort inputs against whitelist
+const safeSortBy = ALLOWED_SORT_COLUMNS.includes(sort_by)
 
 export const getExpenseById = async (req, res, next) => {
     try {
