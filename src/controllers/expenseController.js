@@ -16,10 +16,114 @@ export const getExpenses =  async (req, res, next) => {
     page,
     limit,
  } = req.query;
-};
+
 
 // santize sort inputs against whitelist
 const safeSortBy = ALLOWED_SORT_COLUMNS.includes(sort_by)
+? sort_by
+: 'date';
+
+const safeSortOrder = ALLOWED_SORT_ORDERS.includes((sort_order || '').toUpperCase())
+? sort_order.toUpperCase()
+: 'DESC';
+
+// sanitise pagination inputs
+const safePage = Math.max(1, parseInt(page) || 1);
+const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
+const offset = (safePage - 1) * safeLimit;
+
+// build dynamic WHERE clause
+const conditions = ['e.user_id = ?'];
+const params = [req.user.id];
+
+if (search) {
+    conditions.push('e.title LIKE ?');
+    params.push(`%${search}%`);
+}
+if (category_id) {
+    conditions.push('e.category_id = ?');
+    params.push(parseInt(category_id));
+}
+
+if (date_from) {
+    conditions.push('e.date >= ?');
+    params.push(date_from);
+}
+
+if  (date_to) {
+    conditions.push('e.date < ?');
+    params.push(date_to);
+}
+
+if (min_amount) {
+    conditions.push('e.amount >= ?');
+    params.push(parseFloat(min_amount));
+}
+
+if (max_amount) {
+    conditions.push('e.amount <= ?');
+    params.push(parseFloat(max_amount));
+}
+
+const whereClause = conditions.join(' AND ');
+
+try {
+    //  count query - same WHERE, no LIMIT
+    const countQuery = `
+    SELECT COUNT(*) AS total
+    FROM expenses e
+    LEFT JOIN categories c ON e.category_id = c.id
+    WHERE ${whereClause}
+    `;
+    const [[{ total }]] = await pool.query(countQuery, params);
+    
+    //  Data query - with ORDER BY, LIMIT, OFFSET
+
+    const dataQuery = `
+       SELECT
+          e.id, e.title, e.amount, e.date,
+          e.notes, e.created_at,
+          c.name AS category
+        FROM expenses e
+        LEFT JOIN categories c ON e.category_id = c.id
+        WHERE ${whereClause}
+        ORDER BY e.${safeSortBy} ${safeSortOrder}
+        LIMIT ? OFFSET ?
+    `;
+    const dataParams = [...params, safeLimit, offset];
+    const [rows] = await pool.query(dataQuery, dataParams);
+
+    // Build response
+    const totalPages = Math.ceil(parseInt(total) / safeLimit);
+
+    res.json({
+        data: rows.map( row => ({
+            ...rows,
+            amount: parseFloat(rows.amount),
+        })),
+        pagination: {
+            total: parseInt(total),
+            page: safePage,
+            limit: safeLimit,
+            total_pages: totalPages,
+            has_next: safePage < totalPages,
+            has_prev: safePage  > 1,
+        },
+        filters_applied: {
+            search: search || null,
+            category_id: category_id ? parseInt(category_id) : null,
+            date_from: date_from || null,
+            date_to: date_to || null,
+            min_amount: min_amount ? parseFloat(min_amount) : null,
+            max_amount: max_amount ? parseFloat(max_amount) : null,
+            sort_by: safeSortBy,
+            sort_order: safeSortOrder,
+        },
+    });
+} catch(err) {
+    next(err);
+}
+}
 
 export const getExpenseById = async (req, res, next) => {
     try {
@@ -84,4 +188,4 @@ export const deleteExpense = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
-};
+}
