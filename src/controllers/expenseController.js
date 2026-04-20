@@ -147,9 +147,48 @@ export const createExpense = async (req, res, next) => {
     const {title, amount, category_id, date, notes } = req.body;
     try {
         const [result] = await pool.query(
-            `INSERT INTO expenses (title, amount, category_id, date, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)`,
+            'INSERT INTO expenses (title, amount, category_id, date, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)',
             [title, amount, category_id || null, date, notes || null, req.user.id]
         );
+
+        // Base response - expense was saved
+        const response = { id: result.insertId, title, amount: parseFloat(amount), date };
+
+        // Check budget only if a category was provided 
+        if (category_id) {
+            const [budgetRows] = await pool.query(`
+               SELECT 
+               b.amount AS budget_amount,
+               COALESCE(SUM(e.amount), 0) AS spent
+               FROM budgets b
+               LEFT JOIN expenses e
+                ON e.category_id = b.category_id
+                AND e.user_id = b.user_id 
+                AND DATE_FORMAT(e.date, '%Y-%m') = DATE_FORMAT(NOW(), '%Y-%m')
+                WHERE b.user_id = ?
+                AND b.category_id = ?
+                AND b.period = 'monthly'
+                GROUP BY b.amount
+                `, [req.user.id, category_id]);
+                if (budgetRows.length > 0) {
+                    const { budget_amount, spent } = budgetRows[0];
+                    const percentage = (parseFloat(spent) / parseFloat(budget_amount)) * 100;
+                    
+                    if (percentage >= 100) {
+                        response.budget_alert = {
+                            type: 'exceeded',
+                            message: 'You have exceeded your monthly budget for this category',
+                            percentage: parseFloat(percentage.toFixed(2))
+                        };
+                    } else if (percentage >= 80) {
+                        response.budget_alert = {
+                            type: 'warning',
+                            message: 'You have used ${percentage.toFixed(1)}% of your monthly budget',
+                            percentage: parseFloat(percentage.toFixed(2))
+                        };
+                    }
+                }
+        }
         res.status(201).json({ id: result.insertId, title, amount, date });
     } catch (err){
         next(err);

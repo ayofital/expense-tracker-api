@@ -7,6 +7,7 @@ import expensesRouter from './routes/expenses.js';
 import categoriesRoutes from './routes/categories.js';
 import authRouter from './routes/auth.js';
 import reportsRouter from './routes/reports.js';
+import budgetsRouter from './routes/budgets.js';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/reports', reportsRouter);
+app.use('/api/budgets', budgetsRouter);
 
 
 app.use(errorHandler)
