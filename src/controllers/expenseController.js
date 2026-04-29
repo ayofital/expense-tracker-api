@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { convertToBase } from '../services/currencyService.js';
 
 const ALLOWED_SORT_COLUMNS = ['date', 'amount', 'title', 'created_at'];
 const ALLOWED_SORT_ORDERS = ['ASC','DESC'];
@@ -146,14 +147,39 @@ export const getExpenseById = async (req, res, next) => {
 export const createExpense = async (req, res, next) => {
   const { title, amount, category_id, date, notes } = req.body;
 
+//   Normalize currency - default to user's base currency
+    const currency = (req.body.currency || 'NGN').toUpperCase().trim();
+
   try {
+    // Get user's base currency
+    const [userRows] = await pool.query(
+        'SELECT base_currency FROM users WHERE id = ?', [req.user.id]
+    );
+    const baseCurrency = userRows[0]?.base_currency || 'NGN';
+
+    //  Convert to base currency
+    const { amountBase, exchangeRate } = await convertToBase(
+        parseFloat(amount), currency, baseCurrency
+    );
     const [result] = await pool.query(
-      'INSERT INTO expenses (title, amount, category_id, date, notes, user_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, amount, category_id || null, date, notes || null, req.user.id]
+        `INSERT INTO expenses
+        (title, amount, currency, amount_base, exchange_rate, category_id, date, notes, user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [title, amount, currency, amountBase, exchangeRate,
+            category_id || null, date, notes || null, req.user.id]
     );
 
     // Base response — expense was saved
-    const response = { id: result.insertId, title, amount: parseFloat(amount), date };
+    const response = {
+         id: result.insertId,
+         title,
+         amount: parseFloat(amount),
+         currency,
+         amount_base: amountBase,
+         exchange_rate: exchangeRate,
+         base_currency: baseCurrency,
+         date,
+         };
 
     // Check budget only if a category was provided
     if (category_id) {
