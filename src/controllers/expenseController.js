@@ -1,17 +1,12 @@
 import pool from '../config/db.js';
 import { convertToBase } from '../services/currencyService.js';
+import { buildExpenseQuery } from '../utils/expenseQueryBuilder.js';
 
 const ALLOWED_SORT_COLUMNS = ['date', 'amount', 'title', 'created_at'];
 const ALLOWED_SORT_ORDERS = ['ASC','DESC'];
 
 export const getExpenses =  async (req, res, next) => {
  const {
-    search,
-    category_id,
-    date_from,
-    date_to,
-    min_amount,
-    max_amount,
     sort_by,
     sort_order,
     page,
@@ -33,40 +28,9 @@ const safePage = Math.max(1, parseInt(page) || 1);
 const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
 const offset = (safePage - 1) * safeLimit;
 
-// build dynamic WHERE clause
-const conditions = ['e.user_id = ?'];
-const params = [req.user.id];
+// --- build dynamic WHERE clause from query builder ---
 
-if (search) {
-    conditions.push('e.title LIKE ?');
-    params.push(`%${search}%`);
-}
-if (category_id) {
-    conditions.push('e.category_id = ?');
-    params.push(parseInt(category_id));
-}
-
-if (date_from) {
-    conditions.push('e.date >= ?');
-    params.push(date_from);
-}
-
-if  (date_to) {
-    conditions.push('e.date < ?');
-    params.push(date_to);
-}
-
-if (min_amount) {
-    conditions.push('e.amount >= ?');
-    params.push(parseFloat(min_amount));
-}
-
-if (max_amount) {
-    conditions.push('e.amount <= ?');
-    params.push(parseFloat(max_amount));
-}
-
-const whereClause = conditions.join(' AND ');
+const { whereClause, params } = buildExpenseQuery(req.user.id, req.query);
 
 try {
     //  count query - same WHERE, no LIMIT
@@ -82,7 +46,8 @@ try {
 
     const dataQuery = `
        SELECT
-          e.id, e.title, e.amount, e.date,
+          e.id, e.title, e.amount, 
+          e.currency, e.amount_base, e.date,
           e.notes, e.created_at,
           c.name AS category
         FROM expenses e
@@ -101,6 +66,7 @@ try {
         data: rows.map( row => ({
             ...rows,
             amount: parseFloat(row.amount),
+            amount_base: row.amount_base ? parseFloat(row.amount_base) : null,
         })),
         pagination: {
             total: parseInt(total),
