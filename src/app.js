@@ -11,6 +11,7 @@ import reportsRouter from './routes/reports.js';
 import budgetsRouter from './routes/budgets.js';
 import recurringRouter from './routes/recurring.js';
 import currencyRouter from './routes/currency.js';
+import exportRouter from './routes/export.js';
 import { processRecurringExpenses } from './jobs/recurringExpenseJob.js';
 
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/reports',    reportsRouter);
 app.use('/api/budgets',    budgetsRouter);
 app.use('/api/recurring',  recurringRouter);
 app.use('/api/currency',   currencyRouter);
+app.use('/api/export', exportRouter);
 
 app.use(errorHandler);
 
