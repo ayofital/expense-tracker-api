@@ -24,13 +24,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'API is running' });
 });
 
-app.use('/api/auth',       authRouter);
-app.use('/api/expenses',   expensesRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/expenses', expensesRouter);
 app.use('/api/categories', categoriesRoutes);
-app.use('/api/reports',    reportsRouter);
-app.use('/api/budgets',    budgetsRouter);
-app.use('/api/recurring',  recurringRouter);
-app.use('/api/currency',   currencyRouter);
+app.use('/api/reports', reportsRouter);
+app.use('/api/budgets', budgetsRouter);
+app.use('/api/recurring', recurringRouter);
+app.use('/api/currency', currencyRouter);
 app.use('/api/export', exportRouter);
 
 app.use(errorHandler);
